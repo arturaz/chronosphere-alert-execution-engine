@@ -8,5 +8,5 @@ import scala.concurrent.duration._
 object AppFormats {
   /** [[Format]] for [[FiniteDuration]] which is represented as a [[Double]] of seconds. */
   val secondsFiniteDurationFormat: Format[FiniteDuration] =
-    implicitly[Format[Double]].bimap(_.seconds, _.toSeconds)
+    implicitly[Format[Double]].bimap(_.seconds, _.toSeconds.toDouble)
 }

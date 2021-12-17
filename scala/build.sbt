@@ -8,7 +8,7 @@ scalacOptions := Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.http4s"      %% "http4s-ember-client" % Http4sVersion,
+  "org.http4s"      %% "http4s-blaze-client" % Http4sVersion,
   "org.http4s"      %% "http4s-play-json"    % Http4sVersion,
   "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
 )
