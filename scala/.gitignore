@@ -1,0 +1,5 @@
+# Scala Build Server Protocol
+/.bsp
+# Compiled classes
+/target
+/project/target
