@@ -12,6 +12,8 @@ trait TypeWrapperCompanion {
 
   /** Extracts [[Underlying]] from [[Wrapper]]. */
   def getValue(a: Wrapper): Underlying
+
+  implicit def toUnderlying(value: Wrapper): Underlying = getValue(value)
 }
 object TypeWrapperCompanion {
   /** Adds [[Format]] to the [[TypeWrapperCompanion]]. */
@@ -19,5 +21,12 @@ object TypeWrapperCompanion {
     def underlyingFormat: Format[Underlying]
 
     implicit val format: Format[Wrapper] = underlyingFormat.bimap(apply, getValue)
+  }
+
+  /** Adds [[Ordering]] to the [[TypeWrapperCompanion]]. */
+  trait WithOrdering { _: TypeWrapperCompanion =>
+    def underlyingOrdering: Ordering[Underlying]
+
+    implicit val ordering: Ordering[Wrapper] = Ordering.by(getValue)(underlyingOrdering)
   }
 }

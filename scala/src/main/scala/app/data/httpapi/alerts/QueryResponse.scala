@@ -1,10 +1,13 @@
-package app.models.httpapi.alerts
+package app.data.httpapi.alerts
 
 import app.utils.TypeWrapperCompanion
 import play.api.libs.json.{Json, OFormat}
 
 /** A value returned from [[QueryResponse]]. */
-case class QueryValue(value: Double) extends AnyVal
+case class QueryValue(value: Double) extends AnyVal {
+  def asAlertThreshold: AlertThresholdValue = AlertThresholdValue(value)
+}
+
 object QueryValue extends TypeWrapperCompanion with TypeWrapperCompanion.WithFormat {
   override type Wrapper = QueryValue
   override type Underlying = Double
