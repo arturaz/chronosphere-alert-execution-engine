@@ -17,6 +17,7 @@ libraryDependencies ++= Seq(
   "org.http4s"        %% "http4s-blaze-client" % Http4sVersion,
   "org.http4s"        %% "http4s-play-json"    % Http4sVersion,
   "org.http4s"        %% "http4s-dsl"          % Http4sVersion,
+  "ch.qos.logback"    % "logback-classic"      % "1.2.8",
   "com.emarsys"       %% "scala-logger"        % ScalaLoggerVersion,
   "com.emarsys"       %% "scala-logger-ce3"    % ScalaLoggerVersion
 )

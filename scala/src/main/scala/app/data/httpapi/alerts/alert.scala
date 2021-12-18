@@ -15,7 +15,14 @@ import scala.math.Ordering.Implicits._
 case class Alert(
   name: AlertName, query: QueryName, interval: FiniteDuration, repeatInterval: FiniteDuration,
   thresholds: AlertThresholds
-)
+) {
+  def debugString: String =
+    s"""### Alert '${name.name}'
+       |$query
+       |interval = $interval, repeat interval = $repeatInterval
+       |${thresholds.debugString}
+       |""".stripMargin
+}
 object Alert {
   implicit val format: OFormat[Alert] = (
     (JsPath \ "name").format[AlertName] and
@@ -85,6 +92,11 @@ object AlertThreshold {
 }
 
 case class AlertThresholds(warn: AlertThreshold, critical: AlertThreshold) {
+  def debugString: String =
+    s"""warn     @ ${warn.value} -> ${warn.message}
+       |critical @ ${critical.value} -> ${critical.message}
+       |""".stripMargin
+
   def stateFor(value: AlertThresholdValue): AlertState = {
     if (value > critical.value) AlertState.Critical(critical.message)
     else if (value > warn.value) AlertState.Warn(warn.message)

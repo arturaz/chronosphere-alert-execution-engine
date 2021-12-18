@@ -50,4 +50,13 @@ object IOUtils {
   /** Indefinitely repeats the given `action` every [[FiniteDuration]]. */
   def timedRepeater(repeatEvery: FiniteDuration, action: IO[Unit]): IO[Nothing] =
     (action *> IO.sleep(repeatEvery)).foreverM
+
+  /**
+   * Indefinitely repeats the given `action` every [[FiniteDuration]], passing in a repetition index each time.
+   * Index starts from 0.
+   **/
+  def timedCountingRepeater(repeatEvery: FiniteDuration, action: Int => IO[Unit]): IO[Nothing] = {
+    def rec(index: Int): IO[Nothing] = (action(index) *> IO.sleep(repeatEvery)) >> rec(index + 1)
+    rec(0)
+  }
 }

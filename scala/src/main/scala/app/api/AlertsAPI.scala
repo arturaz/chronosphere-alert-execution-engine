@@ -2,6 +2,7 @@ package app.api
 
 import app.data.httpapi.alerts._
 import cats.effect.Concurrent
+import cats.syntax.all._
 import org.http4s._
 import org.http4s.client._
 import org.http4s.play.PlayEntityCodec._
@@ -24,34 +25,36 @@ object AlertsAPI {
     client.expect[QueryResponse](request)
   }
 
-  /** POST to `/notify` endpoint. */
+  /**
+   * POST to `/notify` endpoint.
+   *
+   * @return [[Client.successful]]
+   **/
   def notify[F[_] : Concurrent](
     data: NotifyRequest
-  )(implicit baseUri: BaseUri, client: Client[F]): F[BooleanResponse] = {
+  )(implicit baseUri: BaseUri, client: Client[F]): F[Unit] = {
     val entity = playEntityEncoder[F, NotifyRequest].toEntity(data)
     val request = Request[F](Method.POST, baseUri.uri / "notify", body = entity.body)
-    client.expect[BooleanResponse](request)
+    okRequest(request)
   }
 
-  /** POST to `/resolve` endpoint. */
+  /**
+   * POST to `/resolve` endpoint.
+   *
+   * @return [[Client.successful]]
+   **/
   def resolve[F[_] : Concurrent](
     data: ResolveRequest
-  )(implicit baseUri: BaseUri, client: Client[F]): F[BooleanResponse] = {
+  )(implicit baseUri: BaseUri, client: Client[F]): F[Unit] = {
     val entity = playEntityEncoder[F, ResolveRequest].toEntity(data)
     val request = Request[F](Method.POST, baseUri.uri / "resolve", body = entity.body)
-    client.expect[BooleanResponse](request)
+    okRequest(request)
   }
 
-  /** Sends [[notify]] or [[resolve]] respectively. */
-  def sendAlertState[F[_] : Concurrent](
-    alertName: AlertName, alertState: AlertState
-  )(implicit baseUri: BaseUri, client: Client[F]): F[BooleanResponse] = {
-    def doNotify(message: AlertMessage) = notify(NotifyRequest(alertName, message))
-
-    alertState match {
-      case AlertState.Pass => resolve(ResolveRequest(alertName))
-      case AlertState.Warn(message) => doNotify(message)
-      case AlertState.Critical(message) => doNotify(message)
+  /** Request that raises an error if the response HTTP status is not successful. */
+  private def okRequest[F[_] : Concurrent](request: Request[F])(implicit client: Client[F]): F[Unit] =
+    client.status(request).flatMap {
+      case status if status.isSuccess => Concurrent[F].unit
+      case status => Concurrent[F].raiseError(new Exception(s"request failed: $status"))
     }
-  }
 }

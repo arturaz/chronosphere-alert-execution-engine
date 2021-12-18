@@ -4,3 +4,5 @@
 /target
 /project/target
 /project/project/target
+# Log files
+/logs
