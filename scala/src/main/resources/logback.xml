@@ -13,7 +13,7 @@
   </appender>
 
   <appender name="SIFT" class="ch.qos.logback.classic.sift.SiftingAppender">
-    <discriminator class="app.utils.MarkerDiscriminator">
+    <discriminator class="app.utils.logs.MarkerDiscriminator">
       <key>transactionId</key>
     </discriminator>
 

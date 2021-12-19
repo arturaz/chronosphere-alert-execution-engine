@@ -44,7 +44,7 @@ object Main extends IOApp {
       case _ =>
         console
           .errorln(
-            """Usage: ./program base_alerts_api_uri max_concurrent_alert_executions
+            """Usage: ./program base_alerts_api_uri max_concurrent_requests
               |
               |or: ./program test-engine""".stripMargin)
           .as(ExitCode.Error)
