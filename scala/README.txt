@@ -1,3 +1,9 @@
+# How to run this
+
+Have https://www.scala-sbt.org/ installed.
+
+Execute `sbt run`.
+
 ## How the engine works
 
 First the engine initializes:
