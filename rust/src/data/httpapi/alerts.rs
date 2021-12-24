@@ -2,16 +2,16 @@ use std::time::Duration;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AlertName(String);
+pub struct AlertName(pub String);
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct QueryName(String);
+pub struct QueryName(pub String);
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AlertMessage(String);
+pub struct AlertMessage(pub String);
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AlertThresholdValue(f64);
+pub struct AlertThresholdValue(pub f64);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Alert {
