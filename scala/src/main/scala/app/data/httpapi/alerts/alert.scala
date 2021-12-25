@@ -98,8 +98,8 @@ case class AlertThresholds(warn: AlertThreshold, critical: AlertThreshold) {
        |""".stripMargin
 
   def stateFor(value: AlertThresholdValue): AlertState = {
-    if (value > critical.value) AlertState.Critical(critical.message)
-    else if (value > warn.value) AlertState.Warn(warn.message)
+    if (value >= critical.value) AlertState.Critical(critical.message)
+    else if (value >= warn.value) AlertState.Warn(warn.message)
     else AlertState.Pass
   }
 }
