@@ -1,4 +1,5 @@
 use std::error::Error;
+use structopt::StructOpt;
 use reqwest::Url;
 use tower::{ServiceBuilder};
 use crate::alerts_api::MaxConcurrentRequests;
@@ -11,13 +12,26 @@ pub mod data;
 pub mod engine;
 pub mod utils;
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "alert-execution-engine")]
+struct CliArgs {
+    /// Url where the alerts validator is running.
+    #[structopt(short, long, default_value="http://localhost:9001")]
+    url: Url,
+    /// Allows you to limit maximum number of requests to the URL made concurrently.
+    #[structopt(short, long)]
+    max_concurrent_requests: Option<usize>
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     log4rs::init_file("log4rs.yml", Default::default()).unwrap();
 
-    let base_uri = BaseUri(Url::parse("http://localhost:9001").unwrap());
+    let args: CliArgs = CliArgs::from_args();
+
     let client = alerts_api::Client::new(
-        base_uri, MaxConcurrentRequests(1)
+        BaseUri(args.url),
+        args.max_concurrent_requests.map(|v| MaxConcurrentRequests(v))
     );
 
     let policy: InfiniteRetries = Default::default();

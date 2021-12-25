@@ -17,17 +17,17 @@ pub struct MaxConcurrentRequests(pub usize);
 #[derive(Clone)]
 pub struct Client {
     base_uri: BaseUri,
-    max_concurrent_requests: Arc<Semaphore>,
+    max_concurrent_requests: Option<Arc<Semaphore>>,
     client: reqwest::Client
 }
 
 impl Client {
-    pub fn new(base_uri: BaseUri, max_concurrent_requests: MaxConcurrentRequests) -> Client {
-        Client {
-            base_uri,
-            max_concurrent_requests: Arc::new(Semaphore::new(max_concurrent_requests.0)),
-            client: reqwest::Client::new()
-        }
+    pub fn new(base_uri: BaseUri, max_concurrent_requests: Option<MaxConcurrentRequests>) -> Client {
+        let max_concurrent_requests =
+            max_concurrent_requests.map(|max|
+                Arc::new(Semaphore::new(max.0))
+            );
+        Client { base_uri, max_concurrent_requests, client: reqwest::Client::new() }
     }
 
     pub fn query_alerts(&self) -> impl Future<Output = reqwest::Result<QueryAlertsResponse>> {
@@ -81,12 +81,16 @@ impl Client {
         &self, request: RequestBuilder,
         parse: impl FnOnce(Response) -> Pin<Box<dyn Future<Output = reqwest::Result<Parsed>> + Send>>
     ) -> impl Future<Output = reqwest::Result<Parsed>> {
-        let semaphore = self.max_concurrent_requests.clone();
+        let maybe_semaphore = self.max_concurrent_requests.clone();
         // Untie lifetime of the returned future from `self`.
         async move {
-            debug!("Getting a permit...");
-            let _permit = semaphore.acquire().await.unwrap();
-            debug!("Permit acquired, sending request.");
+            let _permit;
+            if let Some(semaphore) = &maybe_semaphore {
+                debug!("Getting a permit...");
+                _permit = semaphore.acquire().await.unwrap();
+                debug!("Permit acquired, sending request.");
+            }
+
             let response = request.send().await?;
             let parsed = parse(response).await;
             debug!("Response received: {:?}", parsed);
