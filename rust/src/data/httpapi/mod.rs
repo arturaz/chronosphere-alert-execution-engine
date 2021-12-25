@@ -1,4 +1,5 @@
-use crate::data::httpapi::alerts::{Alert, AlertMessage, AlertName};
+use std::time::Duration;
+use crate::data::httpapi::alerts::{Alert, AlertMessage, AlertName, AlertThresholdValue};
 use serde::{Serialize, Deserialize};
 
 pub mod alerts;
@@ -12,6 +13,9 @@ pub struct QueryAlertsResponse {
 #[derive(Deserialize, Debug)]
 #[serde(transparent)]
 pub struct QueryValue(pub f64);
+impl From<QueryValue> for AlertThresholdValue {
+    fn from(v: QueryValue) -> Self { AlertThresholdValue(v.0) }
+}
 
 #[derive(Deserialize, Debug)]
 pub struct QueryResponse {
@@ -19,16 +23,21 @@ pub struct QueryResponse {
 }
 
 /// Request body for `/notify` endpoint.
-#[derive(Serialize, Debug)]
-pub struct NotifyRequest<'l> {
+#[derive(Serialize, Debug, Clone)]
+pub struct NotifyRequest {
     #[serde(rename = "alertName")]
-    pub alert_name: &'l AlertName,
-    pub message: &'l AlertMessage
+    pub alert_name: AlertName,
+    pub message: AlertMessage
 }
 
 /// Request body for `/resolve` endpoint.
-#[derive(Serialize, Debug)]
-pub struct ResolveRequest<'l> {
+#[derive(Serialize, Debug, Clone)]
+pub struct ResolveRequest {
     #[serde(rename = "alertName")]
-    pub alert_name: &'l AlertName
+    pub alert_name: AlertName
+}
+
+pub enum AlertStatusChangeRequest {
+    Notify { request: NotifyRequest, repeat_after: Duration },
+    Resolve(ResolveRequest)
 }

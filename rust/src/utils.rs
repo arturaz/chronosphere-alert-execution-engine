@@ -1,6 +1,9 @@
 use std::cmp::min;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
-use futures_util::future;
+use log::info;
 use tower::retry::Policy;
 
 pub mod seconds_duration_format {
@@ -20,9 +23,10 @@ pub mod seconds_duration_format {
     }
 }
 
+/// Specifies a schedule for retrying things.
 #[derive(Clone)]
 pub struct BackoffSchedule {
-    schedule: Vec<Duration>,
+    schedule: Arc<Vec<Duration>>,
     current_idx: usize
 }
 impl BackoffSchedule {
@@ -33,17 +37,38 @@ impl BackoffSchedule {
         duration
     }
 }
+impl Default for BackoffSchedule {
+    fn default() -> Self {
+        BackoffSchedule {
+            schedule: Arc::new(vec![
+                Duration::from_millis(100), Duration::from_millis(250),
+                Duration::from_millis(500), Duration::from_secs(1),
+                Duration::from_secs(2)
+            ]),
+            current_idx: 0
+        }
+    }
+}
 
-#[derive(Clone)]
-pub struct InfiniteRetries/*(BackoffSchedule)*/;
+/// Retry [Policy] that retries forever according to the [BackoffSchedule].
+#[derive(Clone, Default)]
+pub struct InfiniteRetries(BackoffSchedule);
 
 impl<Request : Clone, Response, Error> Policy<Request, Response, Error> for InfiniteRetries {
-    type Future = future::Ready<Self>;
+    type Future = Pin<Box<dyn Future<Output = Self> + Send>>;
 
     fn retry(&self, _req: &Request, result: Result<&Response, &Error>) -> Option<Self::Future> {
         match result {
             Ok(_) => None,
-            Err(_) => Some(future::ready(InfiniteRetries))
+            Err(_) => {
+                let mut schedule = self.0.clone();
+                let sleep_for = schedule.advance();
+                Some(Box::pin(async move {
+                    info!("Sleeping for {:?} before next retry", sleep_for);
+                    tokio::time::sleep(sleep_for).await;
+                    InfiniteRetries(schedule)
+                }))
+            }
         }
     }
 
