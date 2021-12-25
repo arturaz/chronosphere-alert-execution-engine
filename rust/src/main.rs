@@ -1,6 +1,7 @@
 use std::error::Error;
 use reqwest::Url;
 use tower::{ServiceBuilder};
+use crate::alerts_api::MaxConcurrentRequests;
 use crate::api::alerts_api;
 use crate::api::alerts_api::BaseUri;
 use crate::utils::InfiniteRetries;
@@ -15,7 +16,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log4rs::init_file("log4rs.yml", Default::default()).unwrap();
 
     let base_uri = BaseUri(Url::parse("http://localhost:9001").unwrap());
-    let client = alerts_api::Client::new(base_uri);
+    let client = alerts_api::Client::new(
+        base_uri, MaxConcurrentRequests(1)
+    );
 
     let policy: InfiniteRetries = Default::default();
     let query_alerts = {
