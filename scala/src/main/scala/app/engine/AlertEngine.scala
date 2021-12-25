@@ -1,5 +1,6 @@
 package app.engine
 
+import app.StringExts
 import app.data.MaxConcurrentRequests
 import app.data.httpapi.alerts._
 import app.utils.IOUtils
