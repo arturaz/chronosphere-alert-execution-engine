@@ -2,27 +2,39 @@ package api
 
 import (
 	"alert-execution-engine/data/httpapi"
+	. "alert-execution-engine/functional"
+	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sync/semaphore"
 	"net/http"
 	"net/url"
 )
 import HttpClient "github.com/bozd4g/go-http-client"
 
 type Client struct {
-	BaseUri url.URL
-	Client  HttpClient.Client
+	BaseUri                 url.URL
+	maybeConcurrentRequests *semaphore.Weighted
+	client                  HttpClient.Client
 }
 
-func NewClient(baseUri url.URL) Client {
+type MaxConcurrentRequests uint
+
+func NewClient(baseUri url.URL, maxConcurrentRequests Option[MaxConcurrentRequests]) Client {
+	var concurrentRequests *semaphore.Weighted
+	if maxConcurrentRequests.IsSome {
+		concurrentRequests = semaphore.NewWeighted(int64(maxConcurrentRequests.UnsafeValue))
+	}
+
 	return Client{
-		BaseUri: baseUri,
-		Client:  HttpClient.New(baseUri.String()),
+		BaseUri:                 baseUri,
+		maybeConcurrentRequests: concurrentRequests,
+		client:                  HttpClient.New(baseUri.String()),
 	}
 }
 
 func (self *Client) QueryAlerts() (*httpapi.QueryAlertsResponse, error) {
-	request, err := self.Client.Get("/alerts")
+	request, err := self.client.Get("/alerts")
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +51,7 @@ func (self *Client) Query(queryName httpapi.QueryName) (*httpapi.QueryResponse, 
 	queryParams := struct {
 		Target string `url:"target"`
 	}{Target: queryName.String()}
-	request, err := self.Client.GetWith("/query", queryParams)
+	request, err := self.client.GetWith("/query", queryParams)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +60,7 @@ func (self *Client) Query(queryName httpapi.QueryName) (*httpapi.QueryResponse, 
 }
 
 func (self *Client) Notify(requestData httpapi.NotifyRequest) error {
-	request, err := self.Client.PostWith("/notify", requestData)
+	request, err := self.client.PostWith("/notify", requestData)
 	if err != nil {
 		return err
 	}
@@ -58,7 +70,7 @@ func (self *Client) Notify(requestData httpapi.NotifyRequest) error {
 }
 
 func (self *Client) Resolve(requestData httpapi.ResolveRequest) error {
-	request, err := self.Client.PostWith("/resolve", requestData)
+	request, err := self.client.PostWith("/resolve", requestData)
 	if err != nil {
 		return err
 	}
@@ -77,7 +89,7 @@ func (self BodyParsingError) Error() string {
 }
 
 func sendAndParse[Parsed any](self *Client, request *http.Request) (*Parsed, error) {
-	response, err := self.Client.Do(request)
+	response, err := self.send(request)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +117,7 @@ func (self NonSuccessfulRequestError) Error() string {
 
 // Sends the request, fails if the response does not have 2xx status code.
 func (self *Client) sendAndFailOnNonSuccess(request *http.Request) (HttpClient.Response, error) {
-	response, err := self.Client.Do(request)
+	response, err := self.send(request)
 	if err != nil {
 		return nil, err
 	}
@@ -116,4 +128,16 @@ func (self *Client) sendAndFailOnNonSuccess(request *http.Request) (HttpClient.R
 	}
 
 	return response, nil
+}
+
+func (self *Client) send(request *http.Request) (HttpClient.Response, error) {
+	if self.maybeConcurrentRequests != nil {
+		ctx := context.TODO()
+		err := self.maybeConcurrentRequests.Acquire(ctx, 1)
+		if err != nil {
+			return nil, err
+		}
+		defer self.maybeConcurrentRequests.Release(1)
+	}
+	return self.client.Do(request)
 }

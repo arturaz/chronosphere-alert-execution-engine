@@ -20,3 +20,11 @@ func Right[A any, B any](b B) Either[A, B] {
 		UnsafeRight: b,
 	}
 }
+
+func (e Either[A, B]) Match(onLeft func(a A), onRight func(b B)) {
+	if e.IsRight {
+		onRight(e.UnsafeRight)
+	} else {
+		onLeft(e.UnsafeLeft)
+	}
+}

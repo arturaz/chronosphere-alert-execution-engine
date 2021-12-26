@@ -8,6 +8,10 @@ import (
 
 type AlertName string
 
+func (a AlertName) String() string {
+	return string(a)
+}
+
 type QueryName string
 
 func (q QueryName) String() string {
@@ -60,10 +64,10 @@ type AlertThresholds struct {
 	Critical AlertThreshold
 }
 
-func (self *AlertThresholds) stateFor(value *AlertThresholdValue) AlertState {
-	if *value >= self.Critical.Value {
+func (self AlertThresholds) StateFor(value AlertThresholdValue) AlertState {
+	if value >= self.Critical.Value {
 		return &AlertStateCritical{self.Critical.Message}
-	} else if *value >= self.Warn.Value {
+	} else if value >= self.Warn.Value {
 		return &AlertStateWarn{self.Warn.Message}
 	} else {
 		return &AlertStatePass{}

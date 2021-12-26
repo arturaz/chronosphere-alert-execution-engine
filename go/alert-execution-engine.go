@@ -3,45 +3,39 @@ package main
 import (
 	"alert-execution-engine/api"
 	"alert-execution-engine/data/httpapi"
+	"alert-execution-engine/engine"
+	. "alert-execution-engine/functional"
+	"alert-execution-engine/utils"
 	"fmt"
+	"go.uber.org/zap"
 	"net/url"
 )
 
 func main() {
+	log, err := zap.NewDevelopment()
+	if err != nil {
+		panicStr(fmt.Sprintf("Error initializing logger: %s", err))
+	}
+
 	baseUri, err := url.Parse("http://localhost:9001")
 	if err != nil {
 		panicStr(fmt.Sprintf("Can't parse base url: %s", err))
 	}
 
-	client := api.NewClient(*baseUri)
+	client := api.NewClient(*baseUri, Some(api.MaxConcurrentRequests(3)))
 
-	alerts, err := client.QueryAlerts()
-	if err != nil {
-		panicStr(fmt.Sprintf("Can't get query alerts: %s", err))
-	}
+	engine.Initialize(
+		log,
+		func() (*httpapi.QueryAlertsResponse, *error) {
+			return client.QueryAlerts()
+		},
+		func(name httpapi.QueryName) (*httpapi.QueryResponse, *error) {
+			return client.Query(name)
+		},
+		func(isAborted utils.IsChannelClosed, request httpapi.NotifyRequest) error {
 
-	fmt.Println(alerts)
-
-	response, err := client.Query(alerts.Alerts[0].Query)
-	if err != nil {
-		panicStr(fmt.Sprintf("Can't query: %s", err))
-	}
-	fmt.Println(response)
-
-	err = client.Notify(httpapi.NotifyRequest{
-		AlertName: alerts.Alerts[0].Name,
-		Message:   "Hello",
-	})
-	if err != nil {
-		panicStr(fmt.Sprintf("Can't notify: %s", err))
-	}
-
-	err = client.Resolve(httpapi.ResolveRequest{
-		AlertName: alerts.Alerts[0].Name,
-	})
-	if err != nil {
-		panicStr(fmt.Sprintf("Can't resolve: %s", err))
-	}
+		},
+	)
 }
 
 func panicStr(s string) {
