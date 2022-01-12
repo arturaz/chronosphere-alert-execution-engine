@@ -99,7 +99,8 @@ object AlertEngine {
   )(implicit log: Logging[IO], logCtx: LoggingContext): IO[Nothing] = {
     /**
      * Takes the current [[AlertState]] from the [[Ref]], invokes `singleExecutionRun` and stores the resulting
-     * state back to the [[Ref]]. */
+     * state back to the [[Ref]].
+     **/
     def singleExecutionRunRef(alertStateRef: Ref[IO, AlertState]) =
       for {
         currentState <- alertStateRef.get
@@ -107,7 +108,7 @@ object AlertEngine {
         _ <- alertStateRef.set(result.newState)
       } yield result.reporterResource
 
-    case class SingleExecutionRunResult(newState: AlertState, reporterResource: ResourceIO[Unit])
+    case class SingleExecutionRunResult(newState: AlertState, reporterResource: Option[ResourceIO[Unit]])
 
     /**
      * Queries the alert value, determines the new state and returns a resource that can be used to start
@@ -122,7 +123,7 @@ object AlertEngine {
         if (currentState == newState) {
           // Returns a resource that will do nothing
           val logIO = log.debug("State kept the same")
-          (logIO, Resource.unit[IO])
+          (logIO, None)
         } else {
           val logIO = log.info(s"State change: $currentState -> $newState")
           val reporterIO = newState match {
@@ -144,7 +145,7 @@ object AlertEngine {
           }
           // Returns a resource which will start the reporting in the background.
           val resource = reporterIO.background.map(_ => () /* ignore the IO that allows us to know how the fiber ended */)
-          (logIO, resource)
+          (logIO, Some(resource))
         }
       _ <- logIO
     } yield SingleExecutionRunResult(newState, resource)
@@ -153,9 +154,15 @@ object AlertEngine {
     def repeatedExecution(
       reporterHotswap: Hotswap[IO, Unit]
     ) = {
-      val io = singleExecutionRunRef(alertStateRef).flatMap(reporterHotswap.swap) *>
+      val io = singleExecutionRunRef(alertStateRef).flatMap {
+        case Some(newReporterResource) =>
+          log.info("Swapping out new reporter.") *> reporterHotswap.swap(newReporterResource)
+        case None =>
+          log.info("Keeping old reporter.")
+      } *>
         log.info(s"Going to sleep for ${alert.interval}") *>
         IO.sleep(alert.interval)
+
       io.foreverM
     }
 
